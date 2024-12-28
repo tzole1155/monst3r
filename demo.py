@@ -4,7 +4,7 @@
 
 import argparse
 import math
-import gradio
+# import gradio
 import os
 import torch
 import numpy as np
@@ -20,6 +20,7 @@ from dust3r.utils.device import to_numpy
 from dust3r.cloud_opt import global_aligner, GlobalAlignerMode
 from dust3r.utils.viz_demo import convert_scene_output_to_glb, get_dynamic_mask_from_pairviewer
 import matplotlib.pyplot as pl
+import rerun as rr
 
 pl.ion()
 
@@ -88,7 +89,7 @@ def get_reconstructed_scene(args, outdir, model, device, silent, image_size, fil
                             seq_name, new_model_weights, temporal_smoothing_weight, translation_weight, shared_focal, 
                             flow_loss_weight, flow_loss_start_iter, flow_loss_threshold, use_gt_mask, fps, num_frames):
     """
-    from a list of images, run dust3r inference, global aligner.
+    from a list of images, run dust3r in  ference, global aligner.
     then run get_3D_model_from_scene
     """
     translation_weight = float(translation_weight)
@@ -100,6 +101,29 @@ def get_reconstructed_scene(args, outdir, model, device, silent, image_size, fil
     else:
         dynamic_mask_path = None
     imgs = load_images(filelist, size=image_size, verbose=not silent, dynamic_mask_root=dynamic_mask_path, fps=fps, num_frames=num_frames)
+    for i, im in enumerate(imgs):
+        img = im['img_org']
+        mask = im['mask']
+        dynamic_mask = im['dynamic_mask']
+        rr.set_time_sequence('frame', i)
+        rr.log(
+            "/image",
+            rr.Image(
+                img,
+            ).compress(jpeg_quality = 25),
+        )
+        rr.log(
+            '/mask',
+            rr.Tensor(
+                mask[0].int().cpu().numpy(),
+            ),
+        )
+        rr.log(
+            '/dynamic_mask',
+            rr.Tensor(
+                dynamic_mask[0].int().cpu().numpy(),
+            ),
+        )
     if len(imgs) == 1:
         imgs = [imgs[0], copy.deepcopy(imgs[0])]
         imgs[1]['idx'] = 1
@@ -201,6 +225,8 @@ def set_scenegraph_options(inputfiles, winsize, refid, scenegraph_type):
 
 
 def main_demo(tmpdirname, model, device, image_size, server_name, server_port, silent=False, args=None):
+    rr.init("Monstr3D", spawn=True)
+    rr.log("/", rr.ViewCoordinates.LEFT_HAND_Y_UP, static=True)  # Set an up-axis
     recon_fun = functools.partial(get_reconstructed_scene, args, tmpdirname, model, device, silent, image_size)
     model_from_scene_fun = functools.partial(get_3D_model_from_scene, tmpdirname, silent)
     with gradio.Blocks(css=""".gradio-container {margin: 0 !important; min-width: 100%};""", title="DUSt3R Demo") as demo:

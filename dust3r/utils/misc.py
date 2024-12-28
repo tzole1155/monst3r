@@ -4,7 +4,10 @@
 import torch
 import cv2
 import numpy as np
-from dust3r.utils.vo_eval import save_trajectory_tum_format
+try:
+    from dust3r.utils.vo_eval import save_trajectory_tum_format
+except ImportError:
+    print('For evaluation please install evo from https://github.com/MichaelGrupp/evo')
 from PIL import Image
 
 def get_stride_distribution(strides, dist_type='uniform'):

@@ -13,7 +13,10 @@ import torchvision.transforms as tvf
 os.environ["OPENCV_IO_ENABLE_OPENEXR"] = "1"
 import cv2  # noqa
 import glob
-import imageio
+try:
+    import imageio
+except ImportError:
+    print('Please install imageio with "pip install imageio"')
 import matplotlib.pyplot as plt
 
 try:
@@ -176,6 +179,7 @@ def load_images(folder_or_list, size, square_ok=False, verbose=True, dynamic_mas
         if path.lower().endswith(supported_images_extensions):
             # Process image files
             img = exif_transpose(PIL.Image.open(full_path)).convert('RGB')
+            img_org = np.array(img.copy())
             W1, H1 = img.size
             img = crop_img(img, size, square_ok=square_ok, crop=crop)
             W2, H2 = img.size
@@ -185,6 +189,7 @@ def load_images(folder_or_list, size, square_ok=False, verbose=True, dynamic_mas
             
             single_dict = dict(
                 img=ImgNorm(img)[None],
+                img_org=img_org,
                 true_shape=np.int32([img.size[::-1]]),
                 idx=len(imgs),
                 instance=full_path,
